@@ -2,6 +2,7 @@ import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import Script from 'next/script'
+import Footer from '../components/Footer.component'
 import Navbar from '../components/Navbar.component'
 import styles from '../styles/Home.module.css'
 
@@ -12,35 +13,31 @@ const Home: NextPage = () => {
         <title>TradingSage.com</title>
         <meta name="description" content="Make market analysis and get price alerts straight to your mobile phone as phone calls or text messages" />
         <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
       <main className={styles.main}>
         <Navbar/>
         <Script strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
         <section id='banner'>
-          <div className={styles.blocker}>
-          
-          </div>
           <div className={styles.cover}>
             <h1>TradingSage.com</h1>
+            <h3 className={styles.description}>Perform market analysis and get price alerts straight to your phone as calls or text messages</h3>
+            <button className={styles.authButn}>Sign In</button>
           </div>
           <div className="tradingview-widget-container">
             <div id="tradingview_b74d9"></div>
           </div>
         </section>
+        <section className={styles.about}>
+          <h3>
+            Perform Analysis with our state of the art tools
+          </h3>
+          <h2>Add custom widgets to your profile help improve your sites  </h2>
+          <div className={styles.widgets}>
+          </div>
+        </section>
       </main>
 
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
       <Script strategy='afterInteractive'>
         {
         `
@@ -71,8 +68,8 @@ const Home: NextPage = () => {
         "container_id": "tradingview_b74d9"
         });
       `}
-        
       </Script>
+      <Footer/>
     </div>
   )
 }

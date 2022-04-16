@@ -10,14 +10,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-}
-
-.blocker {
-  width: 100%;
-  height: 25%;
-  background: #1e222d;
-  position: absolute;
-  top: 0;
+  overflow: hidden;
 }
 
 .cover {
@@ -28,9 +21,48 @@
   align-content: center;
   justify-content: center;
   flex-direction: column;
-  font-size: 7vw;
+  font-size: 5.5vw;
   align-items: center;
-  background: #00000096;
+  background: #13172282;
+}
+
+.cover>h1 {
+  margin: 2rem auto;
+}
+
+.description {
+  font-size: 1.7vw;
+  width: 27%;
+  text-align: center;
+}
+
+.authButn {
+  width: 7.3%;
+  padding: 0.7rem;
+  margin: 0.7rem auto;
+  background: #a33955;
+  color: #eee;
+  border: none;
+  border-radius: 22rem;
+  cursor: pointer;
+}
+
+.about {
+  height: 100vh;
+  width: 100vw;
+  top: 18px;
+  position: relative;
+  background: #131722;
+  text-align: center;
+}
+
+.about>h3 {
+  text-align: center;
+  font-size: xx-large;
+}
+
+.widgets {
+  position: relative;
 }
 
 .footer {
@@ -49,89 +81,10 @@
   flex-grow: 1;
 }
 
-.title a {
-  color: #0070f3;
-  text-decoration: none;
-}
-
-.title a:hover,
-.title a:focus,
-.title a:active {
-  text-decoration: underline;
-}
-
-.title {
-  margin: 0;
-  line-height: 1.15;
-  font-size: 4rem;
-}
-
-.title,
-.description {
-  text-align: center;
-}
-
-.description {
-  margin: 4rem 0;
-  line-height: 1.5;
-  font-size: 1.5rem;
-}
-
-.code {
-  background: #fafafa;
-  border-radius: 5px;
-  padding: 0.75rem;
-  font-size: 1.1rem;
-  font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono,
-    Bitstream Vera Sans Mono, Courier New, monospace;
-}
-
-.grid {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  max-width: 800px;
-}
-
-.card {
-  margin: 1rem;
-  padding: 1.5rem;
-  text-align: left;
-  color: inherit;
-  text-decoration: none;
-  border: 1px solid #eaeaea;
-  border-radius: 10px;
-  transition: color 0.15s ease, border-color 0.15s ease;
-  max-width: 300px;
-}
-
-.card:hover,
-.card:focus,
-.card:active {
-  color: #0070f3;
-  border-color: #0070f3;
-}
-
-.card h2 {
-  margin: 0 0 1rem 0;
-  font-size: 1.5rem;
-}
-
-.card p {
-  margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.5;
-}
-
-.logo {
-  height: 1em;
-  margin-left: 0.5rem;
-}
-
 @media (max-width: 600px) {
-  .grid {
-    width: 100%;
-    flex-direction: column;
+  .description {
+    font-size: 3.7vw;
+    width: 12%;
+    text-align: center;
   }
 }
