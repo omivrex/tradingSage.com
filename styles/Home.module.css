@@ -68,20 +68,27 @@
 
 .widgets>div {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 80%;
   margin: 2rem auto;
 }
 
+.widgets>div:first-of-type {
+  flex-wrap: wrap;
+}
+
 .widgets>div>span {
-  width: 17rem;
+  min-width: 20rem;
   text-align: center;
   display: block;
   margin: auto;
+  padding: 0.5rem;
+  font-size: 1.9em;
 }
 
 .widgets>div:first-of-type>img{
-  width: 90%;
+  width: 70%;
+  margin: auto;
 }
 
 .widgets>div:nth-child(2) {

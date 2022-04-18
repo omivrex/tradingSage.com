@@ -5,8 +5,10 @@ import Script from 'next/script'
 import Footer from '../components/Footer.component'
 import Navbar from '../components/Navbar.component'
 import styles from '../styles/Home.module.css'
-
+import { useSession, signIn } from "next-auth/react"
 const Home: NextPage = () => {
+  const { data: session } = useSession()
+  console.log(session)
   return (
     <div className={styles.container}>
       <Head>
@@ -22,7 +24,7 @@ const Home: NextPage = () => {
           <div className={styles.cover}>
             <h1>TradingSage.com</h1>
             <h3 className={styles.description}>Perform market analysis and get price alerts straight to your phone as calls or text messages</h3>
-            <button className={styles.authButn}>Sign In</button>
+            <button className={styles.authButn} onClick={()=> signIn()}>Sign In</button>
           </div>
           <div className="tradingview-widget-container">
             <div id="tradingview_b74d9"></div>
@@ -42,7 +44,7 @@ const Home: NextPage = () => {
               <img src="speediometer.jpg" alt="" />
             </div>
             <div>
-              <span>Get real time price updates on all pairs. </span>
+              <span>Get real time price updates on all pairs. From your favourite currency pairs to crypto pairs</span>
               <img src="marketOverview.jpg" alt="" />
             </div>
           </div>
