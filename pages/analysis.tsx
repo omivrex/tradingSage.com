@@ -20,12 +20,12 @@ const Analysis:NextPage = () => {
                     <div className="tradingview-widget-container" style={{width: '100%', height: '100%'}}>
                         <div id="tradingview_b74d9" style={{width: '100%', height: '100%'}}></div>
                     </div>
-                <Script strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
+                    <Script strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
                     <Script strategy="afterInteractive">
                         {
                             `new TradingView.widget({
                                 "autosize": true,
-                                "symbol": "NASDAQ:AAPL",
+                                "symbol": "BINANCE:BTCUSDT",
                                 "timezone": "Etc/UTC",
                                 "theme": "dark",
                                 "style": "1",
@@ -47,7 +47,9 @@ const Analysis:NextPage = () => {
                         }
                     </Script>
                 </section>
-                    
+                <div className={styles.priceAlertButnWrapper}>
+                    <button>Set Alert</button>
+                </div>
             </main>
             <Footer/>
         </div>

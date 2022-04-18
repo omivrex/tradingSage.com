@@ -42,3 +42,14 @@ nav {
 #appName {
   cursor: pointer;
 }
+
+button {
+  /* width: 7.3%; */
+  padding: 0.9rem 2.4rem;
+  margin: 0.7rem auto;
+  background: #a33955;
+  color: #eee;
+  border: none;
+  border-radius: 22rem;
+  cursor: pointer;
+}

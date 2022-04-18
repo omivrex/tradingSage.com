@@ -26,7 +26,7 @@ const Home: NextPage = () => {
             <h1>TradingSage.com</h1>
             <h3 className={styles.description}>Perform market analysis and get price alerts straight to your phone as calls or text messages</h3>
             <Link passHref={true} href={'/analysis'}>
-              <button className={styles.authButn}>Get Started</button>
+              <button>Get Started</button>
             </Link>
           </div>
           <div className="tradingview-widget-container">
