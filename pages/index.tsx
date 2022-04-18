@@ -1,6 +1,7 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
+import Link from 'next/link'
 import Script from 'next/script'
 import Footer from '../components/Footer.component'
 import Navbar from '../components/Navbar.component'
@@ -24,7 +25,9 @@ const Home: NextPage = () => {
           <div className={styles.cover}>
             <h1>TradingSage.com</h1>
             <h3 className={styles.description}>Perform market analysis and get price alerts straight to your phone as calls or text messages</h3>
-            <button className={styles.authButn} onClick={()=> signIn()}>Sign In</button>
+            <Link passHref={true} href={'/analysis'}>
+              <button className={styles.authButn}>Get Started</button>
+            </Link>
           </div>
           <div className="tradingview-widget-container">
             <div id="tradingview_b74d9"></div>
@@ -61,7 +64,7 @@ const Home: NextPage = () => {
             "BINANCE:BTCUSDT|1D"
             ]
         ],
-        "chartOnly": false,
+        "chartOnly": true,
         "width": "100%",
         "height": "100%",
         "locale": "en",
