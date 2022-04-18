@@ -48,7 +48,7 @@
 }
 
 .about {
-  height: 100vh;
+  height: auto;
   width: 100vw;
   top: 18px;
   position: relative;
@@ -63,22 +63,36 @@
 
 .widgets {
   position: relative;
+  height: auto;
 }
 
-.footer {
+.widgets>div {
   display: flex;
-  flex: 1;
-  padding: 2rem 0;
-  border-top: 1px solid #eaeaea;
-  justify-content: center;
-  align-items: center;
+  flex-wrap: wrap;
+  width: 80%;
+  margin: 2rem auto;
 }
 
-.footer a {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-grow: 1;
+.widgets>div>span {
+  width: 17rem;
+  text-align: center;
+  display: block;
+  margin: auto;
+}
+
+.widgets>div:first-of-type>img{
+  width: 90%;
+}
+
+.widgets>div:nth-child(2) {
+  flex-direction: row-reverse;
+}
+
+.widgets>div>img {
+  /* min-width: 10rem; */
+  width: 36%;
+  flex: 0.5;
+  margin: auto;
 }
 
 @media (max-width: 600px) {

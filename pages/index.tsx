@@ -32,12 +32,23 @@ const Home: NextPage = () => {
           <h3>
             Perform Analysis with our state of the art tools
           </h3>
-          <h2>Add custom widgets to your profile help improve your sites  </h2>
           <div className={styles.widgets}>
+            <div>
+              <span>Add custom widgets to your dashboard help improve your analysis</span>
+              <img src="chartImg.jpg" alt="" />
+            </div>
+            <div>
+              <span>Use the speediometer to compare your analysis to that of your fellow traders</span>
+              <img src="speediometer.jpg" alt="" />
+            </div>
+            <div>
+              <span>Get real time price updates on all pairs. </span>
+              <img src="marketOverview.jpg" alt="" />
+            </div>
           </div>
         </section>
       </main>
-
+      <Footer/>
       <Script strategy='afterInteractive'>
         {
         `
@@ -63,13 +74,12 @@ const Home: NextPage = () => {
         "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
         "noTimeScale": false,
         "valuesTracking": "2",
-        "chartType": "line",
+        "chartType": "area",
         "color": "rgba(41, 98, 255, 1)",
         "container_id": "tradingview_b74d9"
         });
       `}
       </Script>
-      <Footer/>
     </div>
   )
 }
