@@ -20,7 +20,7 @@ const Home: NextPage = () => {
       </Head>
       <main className={styles.main}>
         <Navbar/>
-        <Script strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
+        <Script id='tradingViewScript1' strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
         <section id='banner'>
           <div className={styles.cover}>
             <h1>TradingSage.com</h1>
