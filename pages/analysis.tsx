@@ -21,7 +21,7 @@ const Analysis:NextPage = () => {
                         <div id="tradingview_b74d9" style={{width: '100%', height: '100%'}}></div>
                     </div>
                     <Script strategy='beforeInteractive' src={"https://s3.tradingview.com/tv.js"}></Script>
-                    <Script strategy="afterInteractive">
+                    <Script id='chart-config' strategy="afterInteractive">
                         {
                             `new TradingView.widget({
                                 "autosize": true,

@@ -54,7 +54,7 @@ const Home: NextPage = () => {
         </section>
       </main>
       <Footer/>
-      <Script strategy='afterInteractive'>
+      <Script id='chart-config' strategy='afterInteractive'>
         {
         `
         new TradingView.MediumWidget({
