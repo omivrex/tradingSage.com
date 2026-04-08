@@ -51,3 +51,32 @@ export type SessionDetail = SessionSummary & {
   tick_chunk_cooldown: number
   log_text: string
 }
+
+/**
+ * GET /sessions/{id} response shape (see backend).
+ * Session parameters live under `config`; logs at root `log_text`.
+ */
+export type SessionConfigApi = {
+  pg?: string | null
+  window?: string
+  asset_id?: number | string
+  aggregate?: boolean
+  stake_pct?: number
+  granularity?: string
+  rolling_liquidity?: boolean
+  session_target_pct?: number
+  tick_chunk_cooldown?: number
+}
+
+export type SessionDetailApiResponse = {
+  id: number | string
+  user_id?: number
+  status: string
+  config?: SessionConfigApi
+  created_at: string
+  started_at: string | null
+  ended_at: string | null
+  error_message: string | null
+  rq_job_id?: string
+  log_text: string
+}
