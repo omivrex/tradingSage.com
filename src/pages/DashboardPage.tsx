@@ -47,8 +47,8 @@ const sessionSchema = z.object({
   pg: z.string().nullable(),
   tick_chunk_cooldown: z
     .number()
-    .gt(0, 'Tick chunk cooldown must be greater than 0')
-    .lte(3600, 'Tick chunk cooldown must be <= 3600'),
+    .min(0, 'Tick chunk cooldown must be >= 0')
+    .max(3600, 'Tick chunk cooldown must be <= 3600'),
 })
 
 export const DashboardPage = () => {
@@ -64,7 +64,7 @@ export const DashboardPage = () => {
     aggregate: false,
     rolling_liquidity: false,
     pg: '',
-    tick_chunk_cooldown: 5,
+    tick_chunk_cooldown: 0,
   })
   const [derivKey, setDerivKey] = useState('')
   const [sessionFieldErrors, setSessionFieldErrors] = useState<Record<string, string>>({})
@@ -298,14 +298,14 @@ export const DashboardPage = () => {
               <Grid size={{ xs: 6, md: 3 }}>
                 <TextField
                   type="number"
-                  label="tick_chunk_cooldown"
+                  label="tick_chunk_cooldown (seconds)"
+                  helperText={sessionFieldErrors.tick_chunk_cooldown || '0 = no cooldown'}
                   value={sessionForm.tick_chunk_cooldown}
                   onChange={(e) => {
                     setSessionForm((p) => ({ ...p, tick_chunk_cooldown: Number(e.target.value) }))
                     setSessionFieldErrors((prev) => ({ ...prev, tick_chunk_cooldown: '' }))
                   }}
                   error={!!sessionFieldErrors.tick_chunk_cooldown}
-                  helperText={sessionFieldErrors.tick_chunk_cooldown}
                   fullWidth
                 />
               </Grid>
