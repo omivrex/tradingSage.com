@@ -42,10 +42,9 @@ export const normalizeSessionDetail = (raw: unknown): SessionDetail => {
     session_target_pct: toNum(c.session_target_pct, 0),
     window: c.window ?? '',
     granularity: c.granularity ?? '',
-    aggregate: Boolean(c.aggregate),
     rolling_liquidity: Boolean(c.rolling_liquidity),
-    pg: c.pg != null && String(c.pg) !== '' ? String(c.pg) : null,
-    tick_chunk_cooldown: toNum(c.tick_chunk_cooldown, 0),
+    rolling_scan_every_n_candles: toNum(c.rolling_scan_every_n_candles, 4),
+    max_trades_per_session: c.max_trades_per_session != null ? toNum(c.max_trades_per_session, 1) : null,
     log_text: typeof r.log_text === 'string' ? r.log_text : '',
   }
 }
@@ -56,10 +55,9 @@ export type CreateSessionPayload = {
   session_target_pct: number
   window?: string
   granularity?: string
-  aggregate?: boolean
   rolling_liquidity?: boolean
-  pg?: string | null
-  tick_chunk_cooldown: number
+  rolling_scan_every_n_candles: number
+  max_trades_per_session?: number | null
 }
 
 export const sessionsApi = {

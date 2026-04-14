@@ -5,6 +5,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   Card,
   CardContent,
   Chip,
@@ -12,7 +13,6 @@ import {
   Divider,
   Grid,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -26,6 +26,7 @@ import { enqueueSnackbar } from 'notistack'
 import { meApi } from '../lib/api/meApi'
 import { assetsApi } from '../lib/api/assetsApi'
 import { sessionsApi } from '../lib/api/sessionsApi'
+import type { CreateSessionPayload } from '../lib/api/sessionsApi'
 import { exportsApi } from '../lib/api/exportsApi'
 import { getApiErrorMessage } from '../lib/api/client'
 import { queryKeys } from '../lib/queryKeys'
@@ -42,13 +43,17 @@ const sessionSchema = z.object({
     .lte(100, 'Session target must be <= 100'),
   window: z.string().trim().min(1, 'Window is required').default('1d'),
   granularity: z.string().trim().min(1, 'Granularity is required').default('5m'),
-  aggregate: z.boolean().default(false),
   rolling_liquidity: z.boolean().default(false),
-  pg: z.string().nullable(),
-  tick_chunk_cooldown: z
+  rolling_scan_every_n_candles: z
     .number()
-    .min(0, 'Tick chunk cooldown must be >= 0')
-    .max(3600, 'Tick chunk cooldown must be <= 3600'),
+    .int('Rolling scan interval must be a whole number')
+    .min(1, 'Rolling scan interval must be >= 1'),
+  max_trades_per_session: z
+    .number()
+    .int('Max trades must be a whole number')
+    .min(1, 'Max trades must be >= 1')
+    .nullable()
+    .optional(),
 })
 
 export const DashboardPage = () => {
@@ -61,10 +66,9 @@ export const DashboardPage = () => {
     session_target_pct: 1,
     window: '1d',
     granularity: '5m',
-    aggregate: false,
     rolling_liquidity: false,
-    pg: '',
-    tick_chunk_cooldown: 0,
+    rolling_scan_every_n_candles: 4,
+    max_trades_per_session: '',
   })
   const [derivKey, setDerivKey] = useState('')
   const [sessionFieldErrors, setSessionFieldErrors] = useState<Record<string, string>>({})
@@ -101,7 +105,8 @@ export const DashboardPage = () => {
     mutationFn: async () => {
       const normalized = {
         ...sessionForm,
-        pg: sessionForm.pg ? sessionForm.pg : null,
+        max_trades_per_session:
+          sessionForm.max_trades_per_session === '' ? undefined : Number(sessionForm.max_trades_per_session),
       }
       const parsed = sessionSchema.safeParse(normalized)
       if (!parsed.success) {
@@ -112,12 +117,23 @@ export const DashboardPage = () => {
           session_target_pct: errors.session_target_pct?.[0] || '',
           window: errors.window?.[0] || '',
           granularity: errors.granularity?.[0] || '',
-          tick_chunk_cooldown: errors.tick_chunk_cooldown?.[0] || '',
+          rolling_scan_every_n_candles: errors.rolling_scan_every_n_candles?.[0] || '',
+          max_trades_per_session: errors.max_trades_per_session?.[0] || '',
         })
         throw new Error('Invalid session payload')
       }
       setSessionFieldErrors({})
-      return sessionsApi.createSession(parsed.data)
+      const payload: CreateSessionPayload = {
+        asset_id: parsed.data.asset_id,
+        stake_pct: parsed.data.stake_pct,
+        session_target_pct: parsed.data.session_target_pct,
+        window: parsed.data.window,
+        granularity: parsed.data.granularity,
+        rolling_liquidity: parsed.data.rolling_liquidity,
+        rolling_scan_every_n_candles: parsed.data.rolling_scan_every_n_candles,
+        max_trades_per_session: parsed.data.max_trades_per_session,
+      }
+      return sessionsApi.createSession(payload)
     },
     onSuccess: async (session) => {
       enqueueSnackbar('Session created', { variant: 'success' })
@@ -162,7 +178,8 @@ export const DashboardPage = () => {
       ...sessionForm,
       window: sessionForm.window.trim(),
       granularity: sessionForm.granularity.trim(),
-      pg: sessionForm.pg ? sessionForm.pg : null,
+      max_trades_per_session:
+        sessionForm.max_trades_per_session === '' ? undefined : Number(sessionForm.max_trades_per_session),
     }),
     [sessionForm],
   )
@@ -222,95 +239,127 @@ export const DashboardPage = () => {
           <Card><CardContent>
             <Typography variant="h6" gutterBottom>Create Session</Typography>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Autocomplete
-                  options={myAssetsQuery.data || []}
-                  getOptionLabel={(o) => `${o.symbol} - ${o.display_name}`}
-                  onChange={(_, value) => {
-                    setSessionForm((p) => ({ ...p, asset_id: value?.id || '' }))
-                    setSessionFieldErrors((prev) => ({ ...prev, asset_id: '' }))
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Saved User Asset"
-                      error={!!sessionFieldErrors.asset_id}
-                      helperText={sessionFieldErrors.asset_id}
-                    />
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Technical configuration</Typography>
+                <Stack spacing={2}>
+                  <Autocomplete
+                    options={myAssetsQuery.data || []}
+                    getOptionLabel={(o) => `${o.symbol} - ${o.display_name}`}
+                    onChange={(_, value) => {
+                      setSessionForm((p) => ({ ...p, asset_id: value?.id || '' }))
+                      setSessionFieldErrors((prev) => ({ ...prev, asset_id: '' }))
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Saved User Asset"
+                        error={!!sessionFieldErrors.asset_id}
+                        helperText={sessionFieldErrors.asset_id}
+                      />
+                    )}
+                  />
+                  <TextField
+                    label="window"
+                    value={sessionForm.window}
+                    onChange={(e) => {
+                      setSessionForm((p) => ({ ...p, window: e.target.value }))
+                      setSessionFieldErrors((prev) => ({ ...prev, window: '' }))
+                    }}
+                    error={!!sessionFieldErrors.window}
+                    helperText={sessionFieldErrors.window}
+                    fullWidth
+                  />
+                  <TextField
+                    label="granularity"
+                    value={sessionForm.granularity}
+                    onChange={(e) => {
+                      setSessionForm((p) => ({ ...p, granularity: e.target.value }))
+                      setSessionFieldErrors((prev) => ({ ...prev, granularity: '' }))
+                    }}
+                    error={!!sessionFieldErrors.granularity}
+                    helperText={sessionFieldErrors.granularity}
+                    fullWidth
+                  />
+                  <Stack spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Checkbox
+                        checked={sessionForm.rolling_liquidity}
+                        onChange={(e) => setSessionForm((p) => ({ ...p, rolling_liquidity: e.target.checked }))}
+                        size="small"
+                      />
+                      <Typography>rolling window</Typography>
+                    </Stack>
+                    {sessionForm.rolling_liquidity && (
+                      <TextField
+                        type="number"
+                        label="rolling scan interval (candles)"
+                        value={sessionForm.rolling_scan_every_n_candles}
+                        onChange={(e) => {
+                          setSessionForm((p) => ({ ...p, rolling_scan_every_n_candles: Number(e.target.value) }))
+                          setSessionFieldErrors((prev) => ({ ...prev, rolling_scan_every_n_candles: '' }))
+                        }}
+                        error={!!sessionFieldErrors.rolling_scan_every_n_candles}
+                        fullWidth
+                        sx={{ maxWidth: 320 }}
+                      />
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {sessionFieldErrors.rolling_scan_every_n_candles ||
+                        'Every N candles at selected granularity (e.g. 15m x 4 = every 1 hour).'}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Target configuration</Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    type="number"
+                    label="stake % per trade"
+                    value={sessionForm.stake_pct}
+                    onChange={(e) => {
+                      setSessionForm((p) => ({ ...p, stake_pct: Number(e.target.value) }))
+                      setSessionFieldErrors((prev) => ({ ...prev, stake_pct: '' }))
+                    }}
+                    error={!!sessionFieldErrors.stake_pct}
+                    helperText={sessionFieldErrors.stake_pct}
+                    fullWidth
+                  />
+                  <TextField
+                    type="number"
+                    label="session target %"
+                    value={sessionForm.session_target_pct}
+                    onChange={(e) => {
+                      setSessionForm((p) => ({ ...p, session_target_pct: Number(e.target.value) }))
+                      setSessionFieldErrors((prev) => ({ ...prev, session_target_pct: '' }))
+                    }}
+                    error={!!sessionFieldErrors.session_target_pct}
+                    helperText={sessionFieldErrors.session_target_pct}
+                    fullWidth
+                  />
+                  <TextField
+                    type="number"
+                    label="max trades per session (optional)"
+                    value={sessionForm.max_trades_per_session}
+                    onChange={(e) => {
+                      setSessionForm((p) => ({ ...p, max_trades_per_session: e.target.value }))
+                      setSessionFieldErrors((prev) => ({ ...prev, max_trades_per_session: '' }))
+                    }}
+                    error={!!sessionFieldErrors.max_trades_per_session}
+                    helperText={
+                      sessionFieldErrors.max_trades_per_session ||
+                      'Empty means unlimited. Session stops after N closed trades (win/loss).'
+                    }
+                    fullWidth
+                  />
+                  {sessionForm.max_trades_per_session !== '' && (
+                    <Typography variant="caption" color="text.secondary">
+                      Per-trade TP is derived from session target using 1 / N.
+                    </Typography>
                   )}
-                />
+                </Stack>
               </Grid>
-              <Grid size={{ xs: 6, md: 2 }}>
-                <TextField
-                  type="number"
-                  label="stake_pct"
-                  value={sessionForm.stake_pct}
-                  onChange={(e) => {
-                    setSessionForm((p) => ({ ...p, stake_pct: Number(e.target.value) }))
-                    setSessionFieldErrors((prev) => ({ ...prev, stake_pct: '' }))
-                  }}
-                  error={!!sessionFieldErrors.stake_pct}
-                  helperText={sessionFieldErrors.stake_pct}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 2 }}>
-                <TextField
-                  type="number"
-                  label="session_target_pct"
-                  value={sessionForm.session_target_pct}
-                  onChange={(e) => {
-                    setSessionForm((p) => ({ ...p, session_target_pct: Number(e.target.value) }))
-                    setSessionFieldErrors((prev) => ({ ...prev, session_target_pct: '' }))
-                  }}
-                  error={!!sessionFieldErrors.session_target_pct}
-                  helperText={sessionFieldErrors.session_target_pct}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 2 }}>
-                <TextField
-                  label="window"
-                  value={sessionForm.window}
-                  onChange={(e) => {
-                    setSessionForm((p) => ({ ...p, window: e.target.value }))
-                    setSessionFieldErrors((prev) => ({ ...prev, window: '' }))
-                  }}
-                  error={!!sessionFieldErrors.window}
-                  helperText={sessionFieldErrors.window}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 2 }}>
-                <TextField
-                  label="granularity"
-                  value={sessionForm.granularity}
-                  onChange={(e) => {
-                    setSessionForm((p) => ({ ...p, granularity: e.target.value }))
-                    setSessionFieldErrors((prev) => ({ ...prev, granularity: '' }))
-                  }}
-                  error={!!sessionFieldErrors.granularity}
-                  helperText={sessionFieldErrors.granularity}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 3 }}><TextField label="pg (optional)" value={sessionForm.pg} onChange={(e) => setSessionForm((p) => ({ ...p, pg: e.target.value }))} fullWidth /></Grid>
-              <Grid size={{ xs: 6, md: 3 }}>
-                <TextField
-                  type="number"
-                  label="tick_chunk_cooldown (seconds)"
-                  helperText={sessionFieldErrors.tick_chunk_cooldown || '0 = no cooldown'}
-                  value={sessionForm.tick_chunk_cooldown}
-                  onChange={(e) => {
-                    setSessionForm((p) => ({ ...p, tick_chunk_cooldown: Number(e.target.value) }))
-                    setSessionFieldErrors((prev) => ({ ...prev, tick_chunk_cooldown: '' }))
-                  }}
-                  error={!!sessionFieldErrors.tick_chunk_cooldown}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 3 }}><Stack direction="row" alignItems="center"><Typography>aggregate</Typography><Switch checked={sessionForm.aggregate} onChange={(_, checked) => setSessionForm((p) => ({ ...p, aggregate: checked }))} /></Stack></Grid>
-              <Grid size={{ xs: 6, md: 3 }}><Stack direction="row" alignItems="center"><Typography>rolling_liquidity</Typography><Switch checked={sessionForm.rolling_liquidity} onChange={(_, checked) => setSessionForm((p) => ({ ...p, rolling_liquidity: checked }))} /></Stack></Grid>
             </Grid>
             <Button
               sx={{ mt: 2 }}
@@ -345,7 +394,13 @@ export const DashboardPage = () => {
             {sessionDetailQuery.data && (
               <Stack spacing={1}>
                 <Typography variant="subtitle1">Selected Session: {sessionDetailQuery.data.id}</Typography>
-                <Typography variant="body2">Config: asset_id={sessionDetailQuery.data.asset_id}, stake_pct={sessionDetailQuery.data.stake_pct}, session_target_pct={sessionDetailQuery.data.session_target_pct}, window={sessionDetailQuery.data.window}, granularity={sessionDetailQuery.data.granularity}</Typography>
+                <Typography variant="body2">
+                  Config: asset_id={sessionDetailQuery.data.asset_id}, stake_pct={sessionDetailQuery.data.stake_pct},
+                  session_target_pct={sessionDetailQuery.data.session_target_pct}, window={sessionDetailQuery.data.window},
+                  granularity={sessionDetailQuery.data.granularity}, rolling_scan_every_n_candles=
+                  {sessionDetailQuery.data.rolling_scan_every_n_candles}, max_trades_per_session=
+                  {sessionDetailQuery.data.max_trades_per_session ?? 'unlimited'}
+                </Typography>
                 <TextField multiline minRows={8} value={sessionDetailQuery.data.log_text || ''} label="log_text" InputProps={{ readOnly: true }} />
                 <Stack direction="row" spacing={1}>
                   <Button variant="outlined" disabled={!selectedSessionId || stopSessionMutation.isPending} onClick={() => stopSessionMutation.mutate()}>Stop Session</Button>

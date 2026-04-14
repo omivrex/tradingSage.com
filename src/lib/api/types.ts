@@ -45,10 +45,9 @@ export type SessionDetail = SessionSummary & {
   session_target_pct: number
   window: string
   granularity: string
-  aggregate: boolean
   rolling_liquidity: boolean
-  pg: string | null
-  tick_chunk_cooldown: number
+  rolling_scan_every_n_candles: number
+  max_trades_per_session: number | null
   log_text: string
 }
 
@@ -57,14 +56,17 @@ export type SessionDetail = SessionSummary & {
  * Session parameters live under `config`; logs at root `log_text`.
  */
 export type SessionConfigApi = {
-  pg?: string | null
   window?: string
   asset_id?: number | string
-  aggregate?: boolean
   stake_pct?: number
   granularity?: string
   rolling_liquidity?: boolean
+  rolling_scan_every_n_candles?: number
+  max_trades_per_session?: number | null
   session_target_pct?: number
+  // legacy keys kept for backward compatibility on old sessions
+  aggregate?: boolean
+  pg?: string | null
   tick_chunk_cooldown?: number
 }
 
