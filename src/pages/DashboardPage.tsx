@@ -72,6 +72,12 @@ export const DashboardPage = () => {
   })
   const [derivKey, setDerivKey] = useState('')
   const [sessionFieldErrors, setSessionFieldErrors] = useState<Record<string, string>>({})
+  const [exportJobId, setExportJobId] = useState<string | null>(null)
+  const [exportStatus, setExportStatus] = useState<'idle' | 'starting' | 'polling' | 'ready' | 'downloading' | 'error'>(
+    'idle',
+  )
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null)
+  const [exportStartedAt, setExportStartedAt] = useState<number | null>(null)
 
   const meQuery = useQuery({ queryKey: queryKeys.me, queryFn: meApi.getMe })
   const myAssetsQuery = useQuery({ queryKey: queryKeys.assetsMine, queryFn: meApi.getMyAssets })
@@ -160,6 +166,42 @@ export const DashboardPage = () => {
     },
   })
 
+  const startExportMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedSessionId) throw new Error('Select a session first')
+      return exportsApi.startBundleExport(selectedSessionId)
+    },
+    onMutate: () => {
+      setExportStatus('starting')
+      setExportErrorMessage(null)
+    },
+    onSuccess: (jobId) => {
+      setExportJobId(jobId)
+      setExportStatus('polling')
+      setExportStartedAt(Date.now())
+    },
+    onError: (err) => {
+      setExportStatus('error')
+      setExportErrorMessage(getApiErrorMessage(err))
+    },
+  })
+
+  const downloadExportMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedSessionId || !exportJobId) throw new Error('No ready export to download')
+      await exportsApi.downloadBundleZip(selectedSessionId, exportJobId)
+    },
+    onMutate: () => setExportStatus('downloading'),
+    onSuccess: () => {
+      setExportStatus('ready')
+      enqueueSnackbar('Download complete', { variant: 'success' })
+    },
+    onError: (err) => {
+      setExportStatus('error')
+      setExportErrorMessage(getApiErrorMessage(err))
+    },
+  })
+
   const dedupedSymbols = useMemo(
     () => Array.from(new Set(selectedSymbols.map((s) => s.trim().toUpperCase()).filter(Boolean))),
     [selectedSymbols],
@@ -184,6 +226,58 @@ export const DashboardPage = () => {
     [sessionForm],
   )
   const sessionValidation = sessionSchema.safeParse(normalizedSessionPayload)
+  const exportElapsedSeconds = exportStartedAt ? Math.floor((Date.now() - exportStartedAt) / 1000) : 0
+
+  useEffect(() => {
+    setExportJobId(null)
+    setExportStatus('idle')
+    setExportErrorMessage(null)
+    setExportStartedAt(null)
+  }, [selectedSessionId])
+
+  useEffect(() => {
+    if (!selectedSessionId || !exportJobId || exportStatus !== 'polling') return
+
+    const pollIntervalMs = 3000
+    const maxPollMs = 30 * 60 * 1000
+    let cancelled = false
+
+    const poll = async () => {
+      if (cancelled) return
+      if (exportStartedAt && Date.now() - exportStartedAt > maxPollMs) {
+        setExportStatus('error')
+        setExportErrorMessage('Export timed out after 30 minutes. Please retry export.')
+        return
+      }
+      try {
+        const job = await exportsApi.getBundleExportJob(selectedSessionId, exportJobId)
+        if (cancelled) return
+        if (job.status === 'ready') {
+          setExportStatus('ready')
+          enqueueSnackbar('Export ready', { variant: 'success' })
+          return
+        }
+        if (job.status === 'error') {
+          setExportStatus('error')
+          setExportErrorMessage(job.error_message || 'Export job failed.')
+          return
+        }
+      } catch (err) {
+        setExportStatus('error')
+        setExportErrorMessage(getApiErrorMessage(err))
+      }
+    }
+
+    void poll()
+    const timer = setInterval(() => {
+      void poll()
+    }, pollIntervalMs)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [selectedSessionId, exportJobId, exportStatus, exportStartedAt])
 
   return (
     <Box sx={{ p: 3 }}>
@@ -404,11 +498,39 @@ export const DashboardPage = () => {
                 <TextField multiline minRows={8} value={sessionDetailQuery.data.log_text || ''} label="log_text" InputProps={{ readOnly: true }} />
                 <Stack direction="row" spacing={1}>
                   <Button variant="outlined" disabled={!selectedSessionId || stopSessionMutation.isPending} onClick={() => stopSessionMutation.mutate()}>Stop Session</Button>
-                  <Button variant="outlined" onClick={() => exportsApi.downloadLogs(selectedSessionId)} disabled={!selectedSessionId}>logs txt</Button>
-                  <Button variant="outlined" onClick={() => exportsApi.downloadLiquidity(selectedSessionId)} disabled={!selectedSessionId}>liquidity.csv</Button>
-                  <Button variant="outlined" onClick={() => exportsApi.downloadTracks(selectedSessionId)} disabled={!selectedSessionId}>tracks.zip</Button>
-                  <Button variant="outlined" onClick={() => exportsApi.downloadOrders(selectedSessionId)} disabled={!selectedSessionId}>orders.csv</Button>
+                  <Button
+                    variant="outlined"
+                    disabled={!selectedSessionId || exportStatus === 'starting' || exportStatus === 'polling' || exportStatus === 'downloading'}
+                    onClick={() => startExportMutation.mutate()}
+                  >
+                    {exportStatus === 'starting' ? 'Preparing export…' : 'Prepare Export ZIP'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    disabled={!selectedSessionId || exportStatus !== 'ready' || downloadExportMutation.isPending}
+                    onClick={() => downloadExportMutation.mutate()}
+                  >
+                    {exportStatus === 'downloading' ? 'Downloading…' : 'Download ZIP'}
+                  </Button>
                 </Stack>
+                {exportStatus === 'polling' && (
+                  <Alert severity="info">
+                    Exporting… {exportElapsedSeconds > 0 ? `(${exportElapsedSeconds}s elapsed)` : ''}
+                  </Alert>
+                )}
+                {exportStatus === 'ready' && <Alert severity="success">Export ready. Click Download ZIP.</Alert>}
+                {exportStatus === 'error' && (
+                  <Alert
+                    severity="error"
+                    action={
+                      <Button color="inherit" size="small" onClick={() => startExportMutation.mutate()}>
+                        Retry export
+                      </Button>
+                    }
+                  >
+                    {exportErrorMessage || 'Export failed.'}
+                  </Alert>
+                )}
               </Stack>
             )}
           </CardContent></Card>
