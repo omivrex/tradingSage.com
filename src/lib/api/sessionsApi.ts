@@ -40,8 +40,10 @@ export const normalizeSessionDetail = (raw: unknown): SessionDetail => {
     asset_id: c.asset_id != null && c.asset_id !== '' ? String(c.asset_id) : '',
     stake_pct: toNum(c.stake_pct, 0),
     session_target_pct: toNum(c.session_target_pct, 0),
-    window: c.window ?? '',
     granularity: c.granularity ?? '',
+    mode: c.mode === 'trade' || c.mode === 'backtest' ? c.mode : '',
+    start: c.start ?? '',
+    end: c.end ?? null,
     rolling_liquidity: Boolean(c.rolling_liquidity),
     rolling_scan_every_n_candles: toNum(c.rolling_scan_every_n_candles, 4),
     max_trades_per_session: c.max_trades_per_session != null ? toNum(c.max_trades_per_session, 1) : null,
@@ -55,8 +57,10 @@ export type CreateSessionPayload = {
   asset_id: string | number
   stake_pct: number
   session_target_pct: number
-  window?: string
   granularity?: string
+  mode: 'backtest' | 'trade'
+  start: string
+  end?: string | null
   rolling_liquidity?: boolean
   rolling_scan_every_n_candles: number
   max_trades_per_session?: number | null

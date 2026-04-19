@@ -15,6 +15,7 @@ import {
     IconButton,
     Modal,
     Stack,
+    Switch,
     Table,
     TableBody,
     TableCell,
@@ -35,23 +36,39 @@ import { exportsApi } from "../lib/api/exportsApi";
 import { getApiErrorMessage } from "../lib/api/client";
 import { queryKeys } from "../lib/queryKeys";
 
-const sessionSchema = z.object({
-    asset_id: z.union([z.string().min(1, "Select a saved user asset"), z.number().finite("Select a saved user asset")]),
-    stake_pct: z.number().gt(0, "Stake must be greater than 0").lte(100, "Stake must be <= 100"),
-    session_target_pct: z.number().gt(0, "Session target must be greater than 0").lte(100, "Session target must be <= 100"),
-    window: z.string().trim().min(1, "Window is required").default("1w"),
-    granularity: z.string().trim().min(1, "Granularity is required").default("15m"),
-    rolling_liquidity: z.boolean().default(false),
-    rolling_scan_every_n_candles: z.number().int("Rolling scan interval must be a whole number").min(1, "Rolling scan interval must be >= 1"),
-    max_trades_per_session: z.number().int("Max trades must be a whole number").min(1, "Max trades must be >= 1").nullable().optional(),
-    imbalance_unfavorable_tick_count: z
-        .number()
-        .int("Imbalance unfavorable tick count must be a whole number")
-        .min(1, "Imbalance unfavorable tick count must be >= 1")
-        .max(10000, "Imbalance unfavorable tick count must be <= 10000")
-        .nullable()
-        .optional(),
-});
+const sessionSchema = z
+    .object({
+        asset_id: z.union([z.string().min(1, "Select a saved user asset"), z.number().finite("Select a saved user asset")]),
+        stake_pct: z.number().gt(0, "Stake must be greater than 0").lte(100, "Stake must be <= 100"),
+        session_target_pct: z.number().gt(0, "Session target must be greater than 0").lte(100, "Session target must be <= 100"),
+        granularity: z.string().trim().min(1, "Granularity is required").default("15m"),
+        mode: z.enum(["backtest", "trade"]).default("backtest"),
+        start: z.string().min(1, "Sampling start is required"),
+        end: z.string().nullable().optional(),
+        rolling_liquidity: z.boolean().default(false),
+        rolling_scan_every_n_candles: z.number().int("Rolling scan interval must be a whole number").min(1, "Rolling scan interval must be >= 1"),
+        max_trades_per_session: z.number().int("Max trades must be a whole number").min(1, "Max trades must be >= 1").nullable().optional(),
+        imbalance_unfavorable_tick_count: z
+            .number()
+            .int("Imbalance unfavorable tick count must be a whole number")
+            .min(1, "Imbalance unfavorable tick count must be >= 1")
+            .max(10000, "Imbalance unfavorable tick count must be <= 10000")
+            .nullable()
+            .optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.mode === "backtest" && data.end) {
+            const startTs = Date.parse(data.start);
+            const endTs = Date.parse(data.end);
+            if (Number.isFinite(startTs) && Number.isFinite(endTs) && endTs <= startTs) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["end"],
+                    message: "End must be later than start",
+                });
+            }
+        }
+    });
 
 export const DashboardPage = () => {
     const qc = useQueryClient();
@@ -61,8 +78,10 @@ export const DashboardPage = () => {
         asset_id: "",
         stake_pct: 0.1,
         session_target_pct: 1,
-        window: "1w",
         granularity: "15m",
+        mode: "backtest" as "backtest" | "trade",
+        start: "",
+        end: "",
         rolling_liquidity: false,
         rolling_scan_every_n_candles: 4,
         max_trades_per_session: "5",
@@ -108,6 +127,8 @@ export const DashboardPage = () => {
         mutationFn: async () => {
             const normalized = {
                 ...sessionForm,
+                start: sessionForm.start,
+                end: sessionForm.mode === "trade" || sessionForm.end === "" ? undefined : sessionForm.end,
                 max_trades_per_session: sessionForm.max_trades_per_session === "" ? undefined : Number(sessionForm.max_trades_per_session),
                 imbalance_unfavorable_tick_count:
                     sessionForm.imbalance_unfavorable_tick_count === "" ? undefined : Number(sessionForm.imbalance_unfavorable_tick_count),
@@ -119,8 +140,10 @@ export const DashboardPage = () => {
                     asset_id: errors.asset_id?.[0] || "",
                     stake_pct: errors.stake_pct?.[0] || "",
                     session_target_pct: errors.session_target_pct?.[0] || "",
-                    window: errors.window?.[0] || "",
                     granularity: errors.granularity?.[0] || "",
+                    mode: errors.mode?.[0] || "",
+                    start: errors.start?.[0] || "",
+                    end: errors.end?.[0] || "",
                     rolling_scan_every_n_candles: errors.rolling_scan_every_n_candles?.[0] || "",
                     max_trades_per_session: errors.max_trades_per_session?.[0] || "",
                     imbalance_unfavorable_tick_count: errors.imbalance_unfavorable_tick_count?.[0] || "",
@@ -132,8 +155,10 @@ export const DashboardPage = () => {
                 asset_id: parsed.data.asset_id,
                 stake_pct: parsed.data.stake_pct,
                 session_target_pct: parsed.data.session_target_pct,
-                window: parsed.data.window,
                 granularity: parsed.data.granularity,
+                mode: parsed.data.mode,
+                start: new Date(parsed.data.start).toISOString(),
+                end: parsed.data.mode === "backtest" && parsed.data.end ? new Date(parsed.data.end).toISOString() : undefined,
                 rolling_liquidity: parsed.data.rolling_liquidity,
                 rolling_scan_every_n_candles: parsed.data.rolling_scan_every_n_candles,
                 max_trades_per_session: parsed.data.max_trades_per_session,
@@ -215,8 +240,10 @@ export const DashboardPage = () => {
     const normalizedSessionPayload = useMemo(
         () => ({
             ...sessionForm,
-            window: sessionForm.window.trim(),
             granularity: sessionForm.granularity.trim(),
+            mode: sessionForm.mode,
+            start: sessionForm.start,
+            end: sessionForm.mode === "trade" || sessionForm.end === "" ? undefined : sessionForm.end,
             max_trades_per_session: sessionForm.max_trades_per_session === "" ? undefined : Number(sessionForm.max_trades_per_session),
             imbalance_unfavorable_tick_count:
                 sessionForm.imbalance_unfavorable_tick_count === "" ? undefined : Number(sessionForm.imbalance_unfavorable_tick_count),
@@ -386,16 +413,51 @@ export const DashboardPage = () => {
                                             )}
                                         />
                                         <TextField
-                                            label="window"
-                                            value={sessionForm.window}
+                                            type="datetime-local"
+                                            label="Sampling start"
+                                            value={sessionForm.start}
                                             onChange={(e) => {
-                                                setSessionForm((p) => ({ ...p, window: e.target.value }));
-                                                setSessionFieldErrors((prev) => ({ ...prev, window: "" }));
+                                                setSessionForm((p) => ({ ...p, start: e.target.value }));
+                                                setSessionFieldErrors((prev) => ({ ...prev, start: "" }));
                                             }}
-                                            error={!!sessionFieldErrors.window}
-                                            helperText={sessionFieldErrors.window}
+                                            error={!!sessionFieldErrors.start}
+                                            helperText={sessionFieldErrors.start}
                                             fullWidth
+                                            InputLabelProps={{ shrink: true }}
                                         />
+                                        {sessionForm.mode === "backtest" && (
+                                            <TextField
+                                                type="datetime-local"
+                                                label="Sampling end (optional)"
+                                                value={sessionForm.end}
+                                                onChange={(e) => {
+                                                    setSessionForm((p) => ({ ...p, end: e.target.value }));
+                                                    setSessionFieldErrors((prev) => ({ ...prev, end: "" }));
+                                                }}
+                                                error={!!sessionFieldErrors.end}
+                                                helperText={sessionFieldErrors.end || "If omitted, end defaults to current time when session starts."}
+                                                fullWidth
+                                                InputLabelProps={{ shrink: true }}
+                                            />
+                                        )}
+                                        <Stack spacing={1}>
+                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                <Typography>Trade mode</Typography>
+                                                <Switch
+                                                    checked={sessionForm.mode === "trade"}
+                                                    onChange={(e) => {
+                                                        const isTrade = e.target.checked;
+                                                        setSessionForm((p) => ({
+                                                            ...p,
+                                                            mode: isTrade ? "trade" : "backtest",
+                                                            end: isTrade ? "" : p.end,
+                                                        }));
+                                                        setSessionFieldErrors((prev) => ({ ...prev, mode: "", end: "" }));
+                                                    }}
+                                                    size="small"
+                                                />
+                                            </Stack>
+                                        </Stack>
                                         <TextField
                                             label="granularity"
                                             value={sessionForm.granularity}
@@ -510,6 +572,9 @@ export const DashboardPage = () => {
                             >
                                 Start Session
                             </Button>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                                {sessionForm.mode === "trade" ? "Real Deriv orders may be placed." : "No real orders will be placed."}
+                            </Typography>
                         </CardContent>
                     </Card>
                 </Grid>
@@ -590,7 +655,8 @@ export const DashboardPage = () => {
                         {sessionDetailQuery.data && (
                             <Typography variant="body2">
                                 Config: asset_id={sessionDetailQuery.data.asset_id}, stake_pct={sessionDetailQuery.data.stake_pct}, session_target_pct=
-                                {sessionDetailQuery.data.session_target_pct}, window={sessionDetailQuery.data.window}, granularity=
+                                {sessionDetailQuery.data.session_target_pct}, mode={sessionDetailQuery.data.mode || "-"}, start=
+                                {sessionDetailQuery.data.start || "-"}, end={sessionDetailQuery.data.end ?? "-"}, granularity=
                                 {sessionDetailQuery.data.granularity}, rolling_scan_every_n_candles=
                                 {sessionDetailQuery.data.rolling_scan_every_n_candles}, max_trades_per_session=
                                 {sessionDetailQuery.data.max_trades_per_session ?? "unlimited"}, imbalance_unfavorable_tick_count=

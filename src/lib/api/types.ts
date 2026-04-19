@@ -43,8 +43,10 @@ export type SessionDetail = SessionSummary & {
   asset_id: string
   stake_pct: number
   session_target_pct: number
-  window: string
   granularity: string
+  mode: 'backtest' | 'trade' | ''
+  start: string
+  end: string | null
   rolling_liquidity: boolean
   rolling_scan_every_n_candles: number
   max_trades_per_session: number | null
@@ -57,10 +59,12 @@ export type SessionDetail = SessionSummary & {
  * Session parameters live under `config`; logs at root `log_text`.
  */
 export type SessionConfigApi = {
-  window?: string
   asset_id?: number | string
   stake_pct?: number
   granularity?: string
+  mode?: 'backtest' | 'trade' | string
+  start?: string
+  end?: string | null
   rolling_liquidity?: boolean
   rolling_scan_every_n_candles?: number
   max_trades_per_session?: number | null
