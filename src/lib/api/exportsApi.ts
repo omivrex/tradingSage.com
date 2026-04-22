@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import type { ApiErrorResponse } from './types'
 
 const parseFilename = (header?: string | null) => {
   if (!header) return null
@@ -19,20 +20,54 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url)
 }
 
+type ExportStartResponse = {
+  job_id?: string
+  jobId?: string
+  id?: string
+}
+
+export type ExportJobStatusResponse = {
+  status: 'queued' | 'running' | 'ready' | 'error' | string
+  error_message?: string | null
+}
+
 const runDownload = async (path: string, fallbackName: string) => {
-  const response = await apiClient.get(path, { responseType: 'blob' })
+  const response = await apiClient.get(path, {
+    responseType: 'blob',
+    timeout: 600000,
+  })
   const disposition = response.headers['content-disposition']
   const filename = parseFilename(disposition) || fallbackName
   downloadBlob(response.data, filename)
 }
 
 export const exportsApi = {
-  downloadLogs: (sessionId: string) =>
-    runDownload(`/sessions/${sessionId}/export/logs`, `session-${sessionId}-logs.txt`),
-  downloadLiquidity: (sessionId: string) =>
-    runDownload(`/sessions/${sessionId}/export/liquidity.csv`, `session-${sessionId}-liquidity.csv`),
-  downloadTracks: (sessionId: string) =>
-    runDownload(`/sessions/${sessionId}/export/tracks.csv`, `session-${sessionId}-tracks.zip`),
-  downloadOrders: (sessionId: string) =>
-    runDownload(`/sessions/${sessionId}/export/orders.csv`, `session-${sessionId}-orders.csv`),
+  startBundleExport: async (sessionId: string) => {
+    const { data } = await apiClient.post<ExportStartResponse>(
+      `/sessions/${sessionId}/export/bundle.zip`,
+      undefined,
+      { timeout: 30000 },
+    )
+    const jobId = data.job_id || data.jobId || data.id
+    if (!jobId) {
+      throw new Error('Failed to start export: missing job id in response')
+    }
+    return jobId
+  },
+  getBundleExportJob: async (sessionId: string, jobId: string) => {
+    const { data } = await apiClient.get<ExportJobStatusResponse | ApiErrorResponse>(
+      `/sessions/${sessionId}/export/jobs/${jobId}`,
+      { timeout: 30000 },
+    )
+    const typed = data as ExportJobStatusResponse
+    return {
+      status: typed.status || 'error',
+      error_message: typed.error_message ?? null,
+    }
+  },
+  downloadBundleZip: async (sessionId: string, jobId: string) =>
+    runDownload(
+      `/sessions/${sessionId}/export/jobs/${jobId}/download`,
+      `session-${sessionId}-bundle.zip`,
+    ),
 }

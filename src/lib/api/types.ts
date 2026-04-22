@@ -43,11 +43,46 @@ export type SessionDetail = SessionSummary & {
   asset_id: string
   stake_pct: number
   session_target_pct: number
-  window: string
   granularity: string
-  aggregate: boolean
+  mode: 'backtest' | 'trade' | ''
+  start: string
+  end: string | null
   rolling_liquidity: boolean
-  pg: string | null
-  tick_chunk_cooldown: number
+  rolling_scan_every_n_candles: number
+  max_trades_per_session: number | null
+  log_text: string
+}
+
+/**
+ * GET /sessions/{id} response shape (see backend).
+ * Session parameters live under `config`; logs at root `log_text`.
+ */
+export type SessionConfigApi = {
+  asset_id?: number | string
+  stake_pct?: number
+  granularity?: string
+  mode?: 'backtest' | 'trade' | string
+  start?: string
+  end?: string | null
+  rolling_liquidity?: boolean
+  rolling_scan_every_n_candles?: number
+  max_trades_per_session?: number | null
+  session_target_pct?: number
+  // legacy keys kept for backward compatibility on old sessions
+  aggregate?: boolean
+  pg?: string | null
+  tick_chunk_cooldown?: number
+}
+
+export type SessionDetailApiResponse = {
+  id: number | string
+  user_id?: number
+  status: string
+  config?: SessionConfigApi
+  created_at: string
+  started_at: string | null
+  ended_at: string | null
+  error_message: string | null
+  rq_job_id?: string
   log_text: string
 }
