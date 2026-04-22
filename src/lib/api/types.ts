@@ -50,7 +50,6 @@ export type SessionDetail = SessionSummary & {
   rolling_liquidity: boolean
   rolling_scan_every_n_candles: number
   max_trades_per_session: number | null
-  imbalance_unfavorable_tick_count: number | null
   log_text: string
 }
 
@@ -68,7 +67,6 @@ export type SessionConfigApi = {
   rolling_liquidity?: boolean
   rolling_scan_every_n_candles?: number
   max_trades_per_session?: number | null
-  imbalance_unfavorable_tick_count?: number | null
   session_target_pct?: number
   // legacy keys kept for backward compatibility on old sessions
   aggregate?: boolean

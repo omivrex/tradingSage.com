@@ -45,10 +45,8 @@ export const normalizeSessionDetail = (raw: unknown): SessionDetail => {
     start: c.start ?? '',
     end: c.end ?? null,
     rolling_liquidity: Boolean(c.rolling_liquidity),
-    rolling_scan_every_n_candles: toNum(c.rolling_scan_every_n_candles, 4),
+    rolling_scan_every_n_candles: toNum(c.rolling_scan_every_n_candles, 5),
     max_trades_per_session: c.max_trades_per_session != null ? toNum(c.max_trades_per_session, 1) : null,
-    imbalance_unfavorable_tick_count:
-      c.imbalance_unfavorable_tick_count != null ? toNum(c.imbalance_unfavorable_tick_count, 50) : null,
     log_text: typeof r.log_text === 'string' ? r.log_text : '',
   }
 }
@@ -64,7 +62,6 @@ export type CreateSessionPayload = {
   rolling_liquidity?: boolean
   rolling_scan_every_n_candles: number
   max_trades_per_session?: number | null
-  imbalance_unfavorable_tick_count?: number | null
 }
 
 export const sessionsApi = {

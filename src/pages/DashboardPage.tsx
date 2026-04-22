@@ -41,20 +41,13 @@ const sessionSchema = z
         asset_id: z.union([z.string().min(1, "Select a saved user asset"), z.number().finite("Select a saved user asset")]),
         stake_pct: z.number().gt(0, "Stake must be greater than 0").lte(100, "Stake must be <= 100"),
         session_target_pct: z.number().gt(0, "Session target must be greater than 0").lte(100, "Session target must be <= 100"),
-        granularity: z.string().trim().min(1, "Granularity is required").default("15m"),
+        granularity: z.string().trim().min(1, "Granularity is required").default("1m"),
         mode: z.enum(["backtest", "trade"]).default("backtest"),
         start: z.string().min(1, "Sampling start is required"),
         end: z.string().nullable().optional(),
         rolling_liquidity: z.boolean().default(false),
         rolling_scan_every_n_candles: z.number().int("Rolling scan interval must be a whole number").min(1, "Rolling scan interval must be >= 1"),
         max_trades_per_session: z.number().int("Max trades must be a whole number").min(1, "Max trades must be >= 1").nullable().optional(),
-        imbalance_unfavorable_tick_count: z
-            .number()
-            .int("Imbalance unfavorable tick count must be a whole number")
-            .min(1, "Imbalance unfavorable tick count must be >= 1")
-            .max(10000, "Imbalance unfavorable tick count must be <= 10000")
-            .nullable()
-            .optional(),
     })
     .superRefine((data, ctx) => {
         if (data.mode === "backtest" && data.end) {
@@ -78,14 +71,13 @@ export const DashboardPage = () => {
         asset_id: "",
         stake_pct: 0.1,
         session_target_pct: 1,
-        granularity: "15m",
+        granularity: "1m",
         mode: "backtest" as "backtest" | "trade",
         start: "",
         end: "",
         rolling_liquidity: false,
-        rolling_scan_every_n_candles: 4,
+        rolling_scan_every_n_candles: 5,
         max_trades_per_session: "5",
-        imbalance_unfavorable_tick_count: "100",
     });
     const [derivKey, setDerivKey] = useState("");
     const [sessionFieldErrors, setSessionFieldErrors] = useState<Record<string, string>>({});
@@ -130,8 +122,6 @@ export const DashboardPage = () => {
                 start: sessionForm.start,
                 end: sessionForm.mode === "trade" || sessionForm.end === "" ? undefined : sessionForm.end,
                 max_trades_per_session: sessionForm.max_trades_per_session === "" ? undefined : Number(sessionForm.max_trades_per_session),
-                imbalance_unfavorable_tick_count:
-                    sessionForm.imbalance_unfavorable_tick_count === "" ? undefined : Number(sessionForm.imbalance_unfavorable_tick_count),
             };
             const parsed = sessionSchema.safeParse(normalized);
             if (!parsed.success) {
@@ -146,7 +136,6 @@ export const DashboardPage = () => {
                     end: errors.end?.[0] || "",
                     rolling_scan_every_n_candles: errors.rolling_scan_every_n_candles?.[0] || "",
                     max_trades_per_session: errors.max_trades_per_session?.[0] || "",
-                    imbalance_unfavorable_tick_count: errors.imbalance_unfavorable_tick_count?.[0] || "",
                 });
                 throw new Error("Invalid session payload");
             }
@@ -162,7 +151,6 @@ export const DashboardPage = () => {
                 rolling_liquidity: parsed.data.rolling_liquidity,
                 rolling_scan_every_n_candles: parsed.data.rolling_scan_every_n_candles,
                 max_trades_per_session: parsed.data.max_trades_per_session,
-                imbalance_unfavorable_tick_count: parsed.data.imbalance_unfavorable_tick_count,
             };
             return sessionsApi.createSession(payload);
         },
@@ -245,8 +233,6 @@ export const DashboardPage = () => {
             start: sessionForm.start,
             end: sessionForm.mode === "trade" || sessionForm.end === "" ? undefined : sessionForm.end,
             max_trades_per_session: sessionForm.max_trades_per_session === "" ? undefined : Number(sessionForm.max_trades_per_session),
-            imbalance_unfavorable_tick_count:
-                sessionForm.imbalance_unfavorable_tick_count === "" ? undefined : Number(sessionForm.imbalance_unfavorable_tick_count),
         }),
         [sessionForm],
     );
@@ -494,7 +480,7 @@ export const DashboardPage = () => {
                                             )}
                                             <Typography variant="caption" color="text.secondary">
                                                 {sessionFieldErrors.rolling_scan_every_n_candles ||
-                                                    "Every N candles at selected granularity (e.g. 15m x 4 = every 1 hour)."}
+                                                    "Every N candles at selected granularity (e.g. 1m x 5 = every 5 minutes)."}
                                             </Typography>
                                         </Stack>
                                     </Stack>
@@ -543,21 +529,6 @@ export const DashboardPage = () => {
                                                 `Empty means unlimited. Session stops after N closed trades (win/loss). \n
                                                 Per-trade TP is derived from session target using 1 / N.\n
                                                 ${sessionForm.max_trades_per_session !== "" ? `Per-trade TP is ${1 / Number(sessionForm.max_trades_per_session)}%` : ""}`
-                                            }
-                                            fullWidth
-                                        />
-                                        <TextField
-                                            type="number"
-                                            label="Imbalance unfavorable tick count"
-                                            value={sessionForm.imbalance_unfavorable_tick_count}
-                                            onChange={(e) => {
-                                                setSessionForm((p) => ({ ...p, imbalance_unfavorable_tick_count: e.target.value }));
-                                                setSessionFieldErrors((prev) => ({ ...prev, imbalance_unfavorable_tick_count: "" }));
-                                            }}
-                                            error={!!sessionFieldErrors.imbalance_unfavorable_tick_count}
-                                            helperText={
-                                                sessionFieldErrors.imbalance_unfavorable_tick_count ||
-                                                "Number of consecutive unfavorable raw ticks before force-close. Leave empty to use backend default (50)."
                                             }
                                             fullWidth
                                         />
@@ -659,8 +630,7 @@ export const DashboardPage = () => {
                                 {sessionDetailQuery.data.start || "-"}, end={sessionDetailQuery.data.end ?? "-"}, granularity=
                                 {sessionDetailQuery.data.granularity}, rolling_scan_every_n_candles=
                                 {sessionDetailQuery.data.rolling_scan_every_n_candles}, max_trades_per_session=
-                                {sessionDetailQuery.data.max_trades_per_session ?? "unlimited"}, imbalance_unfavorable_tick_count=
-                                {sessionDetailQuery.data.imbalance_unfavorable_tick_count ?? "default"}
+                                {sessionDetailQuery.data.max_trades_per_session ?? "unlimited"}
                             </Typography>
                         )}
                         <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", justifyContent: "flex-end" }}>
