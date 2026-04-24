@@ -25,6 +25,7 @@ import {
     Typography,
 } from "@mui/material";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CloseIcon from "@mui/icons-material/Close";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { enqueueSnackbar } from "notistack";
@@ -85,6 +86,7 @@ export const DashboardPage = () => {
     const [exportStatus, setExportStatus] = useState<"idle" | "starting" | "polling" | "ready" | "downloading" | "error">("idle");
     const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
     const [exportStartedAt, setExportStartedAt] = useState<number | null>(null);
+    const [isLogsAtBottom, setIsLogsAtBottom] = useState(false);
     const logsContainerRef = useRef<HTMLDivElement | null>(null);
     const isSessionRunning = (session?: { run_started_at?: string | null; status?: string | null }) =>
         Boolean(session?.run_started_at) && session?.status !== "error" && session?.status !== "stopped";
@@ -247,7 +249,15 @@ export const DashboardPage = () => {
         setExportStatus("idle");
         setExportErrorMessage(null);
         setExportStartedAt(null);
+        setIsLogsAtBottom(false);
     }, [selectedSessionId]);
+
+    useEffect(() => {
+        if (!sessionDetailQuery.data || !logsContainerRef.current) return;
+        const el = logsContainerRef.current;
+        const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 16;
+        setIsLogsAtBottom(nearBottom);
+    }, [sessionDetailQuery.data]);
 
     useEffect(() => {
         if (!selectedSessionId || !exportJobId || exportStatus !== "polling") return;
@@ -683,7 +693,15 @@ export const DashboardPage = () => {
                         )}
                     </Box>
 
-                    <Box ref={logsContainerRef} sx={{ p: 2, overflowY: "auto", flex: 1, position: "relative" }}>
+                    <Box
+                        ref={logsContainerRef}
+                        onScroll={(e) => {
+                            const el = e.currentTarget;
+                            const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 16;
+                            setIsLogsAtBottom(nearBottom);
+                        }}
+                        sx={{ p: 2, overflowY: "auto", flex: 1, position: "relative" }}
+                    >
                         <TextField
                             multiline
                             minRows={20}
@@ -696,11 +714,15 @@ export const DashboardPage = () => {
                             <Fab
                                 color="primary"
                                 size="small"
-                                aria-label="scroll logs to top"
-                                onClick={() => logsContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+                                aria-label={isLogsAtBottom ? "scroll logs to top" : "scroll logs to bottom"}
+                                onClick={() => {
+                                    if (!logsContainerRef.current) return;
+                                    const targetTop = isLogsAtBottom ? 0 : logsContainerRef.current.scrollHeight;
+                                    logsContainerRef.current.scrollTo({ top: targetTop, behavior: "smooth" });
+                                }}
                                 sx={{ position: "sticky", bottom: 12, mt: 2, left: "calc(100% - 48px)" }}
                             >
-                                <KeyboardArrowUpIcon />
+                                {isLogsAtBottom ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                             </Fab>
                         )}
                     </Box>
