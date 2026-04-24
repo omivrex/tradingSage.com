@@ -86,6 +86,8 @@ export const DashboardPage = () => {
     const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
     const [exportStartedAt, setExportStartedAt] = useState<number | null>(null);
     const logsContainerRef = useRef<HTMLDivElement | null>(null);
+    const isSessionRunning = (session?: { run_started_at?: string | null; status?: string | null }) =>
+        Boolean(session?.run_started_at) && session?.status !== "error" && session?.status !== "stopped";
 
     const meQuery = useQuery({ queryKey: queryKeys.me, queryFn: meApi.getMe });
     const myAssetsQuery = useQuery({ queryKey: queryKeys.assetsMine, queryFn: meApi.getMyAssets });
@@ -96,8 +98,8 @@ export const DashboardPage = () => {
         queryFn: () => sessionsApi.getSessionById(selectedSessionId),
         enabled: !!selectedSessionId,
         refetchInterval: (query) => {
-            const status = query.state.data?.status;
-            return status === "pending" || status === "running" ? 4000 : false;
+            const data = query.state.data;
+            return isSessionRunning(data) ? 4000 : false;
         },
     });
 
@@ -578,7 +580,7 @@ export const DashboardPage = () => {
                                                 sx={{ cursor: "pointer" }}
                                             >
                                                 <TableCell>{s.id}</TableCell>
-                                                <TableCell>{s.status}</TableCell>
+                                                <TableCell>{isSessionRunning(s) ? "running" : s.status}</TableCell>
                                                 <TableCell>{s.created_at}</TableCell>
                                                 <TableCell>{s.started_at || "-"}</TableCell>
                                                 <TableCell>{s.ended_at || "-"}</TableCell>

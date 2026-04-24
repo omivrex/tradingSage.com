@@ -31,6 +31,9 @@ export const normalizeSessionDetail = (raw: unknown): SessionDetail => {
     status: (r.status as SessionStatus) ?? 'pending',
     created_at: r.created_at ?? '',
     started_at: r.started_at,
+    run_started_at: r.run_started_at ?? null,
+    last_heartbeat_at: r.last_heartbeat_at ?? null,
+    stop_requested_at: r.stop_requested_at ?? null,
     ended_at: r.ended_at,
     error_message: r.error_message,
   }

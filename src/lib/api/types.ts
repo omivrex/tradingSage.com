@@ -28,13 +28,16 @@ export type CatalogAsset = {
   source: string
 }
 
-export type SessionStatus = 'pending' | 'running' | 'stopped' | 'completed' | 'failed'
+export type SessionStatus = 'pending' | 'running' | 'stopped' | 'completed' | 'failed' | 'error'
 
 export type SessionSummary = {
   id: string
   status: SessionStatus
   created_at: string
   started_at: string | null
+  run_started_at?: string | null
+  last_heartbeat_at?: string | null
+  stop_requested_at?: string | null
   ended_at: string | null
   error_message: string | null
 }
@@ -81,6 +84,9 @@ export type SessionDetailApiResponse = {
   config?: SessionConfigApi
   created_at: string
   started_at: string | null
+  run_started_at?: string | null
+  last_heartbeat_at?: string | null
+  stop_requested_at?: string | null
   ended_at: string | null
   error_message: string | null
   rq_job_id?: string
