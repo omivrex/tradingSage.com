@@ -512,7 +512,10 @@ export const DashboardPage = () => {
                                                 setSessionFieldErrors((prev) => ({ ...prev, stake_pct: "" }));
                                             }}
                                             error={!!sessionFieldErrors.stake_pct}
-                                            helperText={sessionFieldErrors.stake_pct}
+                                            helperText={
+                                                sessionFieldErrors.stake_pct ||
+                                                "Used as your max loss threshold (drawdown) from initial session capital."
+                                            }
                                             fullWidth
                                         />
                                         <TextField
